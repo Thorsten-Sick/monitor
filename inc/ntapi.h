@@ -363,6 +363,12 @@ typedef struct _PEB {
 
 #if __x86_64__
 
+/** Reads 64 bit pointer from a specified location in TLS
+*
+* x64 version
+*
+* index: The memory location
+**/
 static inline uintptr_t readtls(uint32_t index)
 {
     uintptr_t ret;
@@ -370,6 +376,13 @@ static inline uintptr_t readtls(uint32_t index)
     return ret;
 }
 
+/** write 64 bit pointer to a specified location in TLS
+*
+* x64 version
+*
+* index: The memory location
+* value: The data to write ( pointer)
+**/
 static inline void writetls(uint32_t index, uintptr_t value)
 {
     __asm__("movq %0, %%gs:(%1)" :: "r" (value), "r" (index));
@@ -377,6 +390,12 @@ static inline void writetls(uint32_t index, uintptr_t value)
 
 #else
 
+/** Reads 64 bit pointer from a specified location in TLS
+*
+* x32 version
+*
+* index: The memory location
+**/
 static inline uintptr_t readtls(uint32_t index)
 {
     uintptr_t ret;
@@ -384,6 +403,13 @@ static inline uintptr_t readtls(uint32_t index)
     return ret;
 }
 
+/** write 64 bit pointer to a specified location in TLS
+*
+* x32 version
+*
+* index: The memory location
+* value: The data to write ( pointer)
+**/
 static inline void writetls(uint32_t index, uintptr_t value)
 {
     __asm__("movl %0, %%fs:(%1)" :: "r" (value), "r" (index));
