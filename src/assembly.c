@@ -22,6 +22,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #if __x86_64__
 
+/** Create assembly to push addr onto the stack
+*
+* stub: Code area to write assembly to
+* addr: Address to push
+**/
 int asm_push_addr(uint8_t *stub, const uint8_t *addr)
 {
     // Push the lower 32-bits of the address onto the stack. The 32-bit
@@ -41,23 +46,38 @@ int asm_push_addr(uint8_t *stub, const uint8_t *addr)
 
 #else
 
+/** Create assembly to push addr onto the stack
+*
+* stub: Code area to write assembly to
+* addr: Address to push
+**/
 int asm_push_addr(uint8_t *stub, const uint8_t *addr)
 {
     // Push the address onto the stack.
-    stub[0] = 0x68;
+    stub[0] = 0x68; // PUSH
     *(const uint8_t **)(stub + 1) = addr;
     return 5;
 }
 
 #endif
 
+/** Create assembly to jump to address
+*
+* stub: memory to modify
+* addr: Addr to jump to
+**/
 int asm_jump_32bit(uint8_t *stub, const uint8_t *addr)
 {
-    stub[0] = 0xe9;
+    stub[0] = 0xe9; // JMP
     *(uint32_t *)(stub + 1) = addr - stub - 5;
     return 5;
 }
 
+/** Create assembly push addr and return
+*
+* stub: Memory area to write assembly to
+* addr: addr to jump to
+**/
 int asm_jump_addr(uint8_t *stub, const uint8_t *addr)
 {
     uint8_t *base = stub;
@@ -66,11 +86,16 @@ int asm_jump_addr(uint8_t *stub, const uint8_t *addr)
     stub += asm_push_addr(stub, addr);
 
     // Pop the address into the instruction pointer.
-    *stub++ = 0xc3;
+    *stub++ = 0xc3; // RET
 
     return stub - base;
 }
 
+/** Create assembly code to jump to address
+*
+* stub: stub to modify
+* addr: Addr to call
+**/
 int asm_call_addr(uint8_t *stub, const uint8_t *addr)
 {
     uint8_t *base = stub;
