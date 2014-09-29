@@ -85,6 +85,9 @@ static PVOID (WINAPI *pRtlAddVectoredExceptionHandler)(
     PVECTORED_EXCEPTION_HANDLER VectoredHandler
 );
 
+/** Init
+*
+**/
 void misc_init(const char *shutdown_mutex)
 {
     HMODULE mod = GetModuleHandle("ntdll");
@@ -135,6 +138,9 @@ static wchar_t *_unicode_buffer()
     return buffers[index % 8];
 }
 
+/** Returns the process ID for a process handle
+* On error, it returns 0
+**/
 uintptr_t pid_from_process_handle(HANDLE process_handle)
 {
     PROCESS_BASIC_INFORMATION pbi; ULONG size;
@@ -147,6 +153,9 @@ uintptr_t pid_from_process_handle(HANDLE process_handle)
     return 0;
 }
 
+/** Returns the priocess ID for a thread handle
+* On error it returns 0
+**/
 uintptr_t pid_from_thread_handle(HANDLE thread_handle)
 {
     THREAD_BASIC_INFORMATION tbi; ULONG size;
@@ -159,11 +168,16 @@ uintptr_t pid_from_thread_handle(HANDLE thread_handle)
     return 0;
 }
 
+/** Returns the PID of the current process
+**/
 uintptr_t parent_process_id()
 {
     return pid_from_process_handle(GetCurrentProcess());
 }
 
+/** Test if object is a directory
+* True if it is a directory
+**/
 BOOL is_directory_objattr(const OBJECT_ATTRIBUTES *obj)
 {
     FILE_BASIC_INFORMATION info;
@@ -182,6 +196,10 @@ BOOL is_directory_objattr(const OBJECT_ATTRIBUTES *obj)
     item.Blink->Flink = item.Flink; \
     item.Flink->Blink = item.Blink
 
+/** Modify PEB and unlink module
+*
+* module_handle: module to unlink
+**/
 void hide_module_from_peb(HMODULE module_handle)
 {
     LDR_MODULE *mod; PEB *peb;
@@ -208,6 +226,9 @@ void hide_module_from_peb(HMODULE module_handle)
     }
 }
 
+/** Overwrite the PE header with 0 bytes
+*
+**/
 void destroy_pe_header(HANDLE module_handle)
 {
     DWORD old_protect;
@@ -219,6 +240,12 @@ void destroy_pe_header(HANDLE module_handle)
     }
 }
 
+/** Copy string
+*
+* str: target
+* value: source
+* length: Length
+**/
 void wcsncpyA(wchar_t *str, const char *value, uint32_t length)
 {
     while (*value != 0 && length != 0) {
@@ -227,6 +254,13 @@ void wcsncpyA(wchar_t *str, const char *value, uint32_t length)
     *str = 0;
 }
 
+/** Copy a unicode string
+*
+* in: source, unicode string
+* out: taret, unicode string
+* buffer: buffer containing the pure string data. Must be allocated and of the proper size
+* length: length of the buffer to copy
+**/
 int copy_unicode_string(const UNICODE_STRING *in,
     UNICODE_STRING *out, wchar_t *buffer, uint32_t length)
 {
@@ -243,6 +277,14 @@ int copy_unicode_string(const UNICODE_STRING *in,
     return -1;
 }
 
+/** Copy Object attributes structure
+*
+* in: source data to copy
+* out: out data, allocated to the proper size
+* unistr: unicode string buffer for ObjectName
+* buffer: buffer for raw ObjectName string
+* length: length of these buffers
+**/
 int copy_object_attributes(const OBJECT_ATTRIBUTES *in,
     OBJECT_ATTRIBUTES *out, UNICODE_STRING *unistr,
     wchar_t *buffer, uint32_t length)
@@ -267,6 +309,11 @@ int copy_object_attributes(const OBJECT_ATTRIBUTES *in,
     return -1;
 }
 
+/** Get file path from file handle
+*
+* handle: handle of the file
+* path: buffer to store the name in
+**/
 uint32_t path_from_handle(HANDLE handle, wchar_t *path)
 {
     IO_STATUS_BLOCK status; FILE_FS_VOLUME_INFORMATION volume_information;
@@ -318,6 +365,9 @@ uint32_t path_from_handle(HANDLE handle, wchar_t *path)
     return 0;
 }
 
+/** Remove leading \\??\\ in paths
+*
+**/
 static uint32_t _path_handle_long_paths(wchar_t *path)
 {
     uint32_t length = lstrlenW(path);
@@ -332,6 +382,12 @@ static uint32_t _path_handle_long_paths(wchar_t *path)
     return length;
 }
 
+/** Copy unicode string to path
+*
+* unistr: source, unicode string
+* path: path buffer to copy string to
+* length: length of the path buffer
+**/
 uint32_t path_from_unicode_string(const UNICODE_STRING *unistr,
     wchar_t *path, uint32_t length)
 {
@@ -689,6 +745,10 @@ void get_ip_port(const struct sockaddr *addr, const char **ip, int *port)
     }
 }
 
+/** Check if monitoring is shutting down
+*
+* returns: 1 on shutdown, 0 else
+**/
 int is_shutting_down()
 {
     HANDLE mutex_handle = OpenMutex(SYNCHRONIZE, FALSE, g_shutdown_mutex);
@@ -731,7 +791,12 @@ void library_from_unicode_string(const UNICODE_STRING *us,
 }
 
 #if !__x86_64__
-
+/** generate stracktrace
+*
+* ebp: stack pointer
+* addrs: address array to fill
+* length: length of array
+**/
 int stacktrace(uint32_t ebp, uint32_t *addrs, uint32_t length)
 {
     uint32_t top = readtls(0x04);
@@ -765,6 +830,14 @@ int stacktrace(uint32_t ebp, uint32_t *addrs, uint32_t length)
 
 #endif
 
+/** Exception handler sending the stacktrace in case of a crash
+*
+* Contains: registers, the stacktrace, exception information
+* on DEBUG build also contains disassembly
+*
+*
+* exception_pointers:
+**/
 static LONG CALLBACK _exception_handler(
     EXCEPTION_POINTERS *exception_pointers)
 {
@@ -875,6 +948,9 @@ static LONG CALLBACK _exception_handler(
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+/** Init the exception handler
+*
+**/
 void setup_exception_handler()
 {
     pRtlAddVectoredExceptionHandler(TRUE, &_exception_handler);

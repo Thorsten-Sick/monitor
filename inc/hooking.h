@@ -23,32 +23,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <windows.h>
 #include "slist.h"
 
+/** Info structure for hooking
+**/
 typedef struct _hook_info_t {
     uint32_t hook_count;
     uint32_t last_error;
 
-    slist_t retaddr;
+    slist_t retaddr;         // List of return addresses
 } hook_info_t;
 
+/** Machine Code structure for hook
+**/
 typedef struct _hook_data_t {
-    uint8_t *trampoline;
-    uint8_t *guide;
-    uint8_t *func_stub;
-    uint8_t *clean;
+    uint8_t *trampoline;      // points to the trampoline code
+    uint8_t *guide;           // points to the guide code (wrapper around calling original stub)
+    uint8_t *func_stub;       // points to the function stub
+    uint8_t *clean;           // points cleanup code
 
-    uint8_t *_mem;
+    uint8_t *_mem;            // Full memory containing all parts above
 } hook_data_t;
 
+/** High level data for hook
+**/
 typedef struct _hook_t {
-    const char *library;
-    const char *funcname;
-    FARPROC handler;
-    FARPROC *orig;
-    int special;
+    const char *library;  // Library name
+    const char *funcname; // Function name
+    FARPROC handler;      // pointer to handler function
+    FARPROC *orig;        // pointer to original function
+    int special;          // 1 if special function
 
-    uint8_t *addr;
+    uint8_t *addr;        // The addr. of the original worker-code. Can be at the end of a chain of jumps
 
-    hook_data_t *data;
+    hook_data_t *data;    // hook_data for that hook
 } hook_t;
 
 hook_info_t *hook_alloc();
