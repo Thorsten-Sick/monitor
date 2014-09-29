@@ -42,6 +42,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 static uintptr_t g_retaddr_spoofed[MONITOR_HOOKCNT][2];
 static uint32_t g_retaddr_length = 0;
 
+/** Creates a new hook_info structure
+*
+**/
 hook_info_t *hook_alloc()
 {
     hook_info_t *ret = (hook_info_t *) calloc(1, sizeof(hook_info_t));
@@ -50,6 +53,10 @@ hook_info_t *hook_alloc()
     return ret;
 }
 
+/** Get hook_info
+*
+* Read the hook_info struct from tls. If not found, returns a new structure
+**/
 hook_info_t *hook_info()
 {
     hook_info_t *ret = (hook_info_t *) readtls(TLS_HOOK_INFO);
@@ -59,18 +66,31 @@ hook_info_t *hook_info()
     return ret;
 }
 
+/** Add return address to hooking info structure
+*
+* retaddr: Address to add
+**/
 void __stdcall hook_retaddr_add(uintptr_t retaddr)
 {
     hook_info_t *h = hook_info();
     slist_push(&h->retaddr, retaddr);
 }
 
+/** Pop return address from hooking info structure
+*
+* returns: return address
+**/
 uintptr_t __stdcall hook_retaddr_pop()
 {
     hook_info_t *h = hook_info();
     return slist_pop(&h->retaddr);
 }
 
+/** Get a return address from hooking info structure
+*
+* index: index of return address
+* returns: The return address
+**/
 uintptr_t hook_retaddr_get(uint32_t index)
 {
     hook_info_t *h = hook_info();
@@ -101,6 +121,10 @@ static void _capstone_init()
     }
 }
 
+/** Get size of assembly instruction at addr
+*
+* addr: Addr to check
+**/
 int lde(const void *addr)
 {
     _capstone_init();
@@ -117,6 +141,11 @@ int lde(const void *addr)
     return size;
 }
 
+/** Disassemble insruction at address
+*
+* addr: Address to disassemble
+* str: Output string
+**/
 int disasm(const void *addr, char *str)
 {
     _capstone_init();
@@ -133,10 +162,18 @@ int disasm(const void *addr, char *str)
     return 0;
 }
 
+/** Create function stub
+*
+* tramp: function stub address
+* addr: Address of the original function
+* len:
+* returns: <0 on error
+**/
 int hook_create_stub(uint8_t *tramp, const uint8_t *addr, int len)
 {
     const uint8_t *base_addr = addr;
 
+    // Reproducing overwritten parts of the original function in the stub
     while (len > 0) {
         int length = lde(addr);
         if(length == 0) return -1;
@@ -245,7 +282,7 @@ int hook_create_stub(uint8_t *tramp, const uint8_t *addr, int len)
         }
     }
 
-    // Jump to the original function at the point where our stub ends.
+    // Return-Jump to the original function at the point where our stub ends.
     tramp += asm_jump_addr(tramp, addr);
     return addr - base_addr;
 }
@@ -268,6 +305,11 @@ static uint8_t *_hook_alloc_closeby_ptr(uint8_t **last_ptr, uint32_t size)
     return ret;
 }
 
+/* Alloc a memory page close by an address
+*
+* target: find memory close by this address
+* size: size to aquire
+**/
 static uint8_t *_hook_alloc_closeby(uint8_t *target, uint32_t size)
 {
     static uint8_t *last_ptr = NULL;
@@ -307,6 +349,12 @@ static uint8_t *_hook_alloc_closeby(uint8_t *target, uint32_t size)
     return NULL;
 }
 
+/** Write jump into code buffer
+*
+* addr: addr to write manipulation to
+* target: address to jump to
+* stub_used: size of the memory to modify
+**/
 int hook_create_jump(uint8_t *addr, uint8_t *target, int stub_used)
 {
     unsigned long old_protect;
@@ -337,6 +385,12 @@ int hook_create_jump(uint8_t *addr, uint8_t *target, int stub_used)
 
 #else
 
+/** Write jump into code buffer
+*
+* addr: addr to write manipulation to
+* target: address to jump to
+* stub_used: size of the memory to modify
+**/
 int hook_create_jump(uint8_t *addr, const uint8_t *target, int stub_used)
 {
     unsigned long old_protect;
@@ -358,6 +412,13 @@ int hook_create_jump(uint8_t *addr, const uint8_t *target, int stub_used)
 
 #endif
 
+/** Follow jumps to the real function code
+*
+* Also adds regions of code to the unhook detection
+* funcname: Required as identifier for unhook detection
+* addr: Start address
+* returns: The code at the end of the jumps
+**/
 static uint8_t *_hook_follow_jumps(const char *funcname, uint8_t *addr)
 {
     // Under Windows 7 some functions have been replaced by a function stub
@@ -406,6 +467,10 @@ static uint8_t *_hook_follow_jumps(const char *funcname, uint8_t *addr)
 #define PATCH(buf, off, value) \
     *(uintptr_t *)(buf + off) = (uintptr_t) value
 
+/** Hooking happens here
+*
+* h: info structure prepared by hook
+**/
 int hook2(hook_t *h)
 {
     hook_data_t *hd = h->data =
@@ -499,6 +564,15 @@ int hook2(hook_t *h)
     return 0;
 }
 
+/** Hook a specified function
+*
+* library: Library to hook
+* funcname: Function to hook in this library
+* handler: Handler function pointer
+* orig: Pointer to original function
+* special: 0 if not special, 1 else
+* returns: -1 on error, 0 on success
+**/
 int hook(const char *library, const char *funcname,
     FARPROC handler, FARPROC *orig, int special)
 {
